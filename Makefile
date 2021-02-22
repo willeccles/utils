@@ -20,9 +20,9 @@ $(BDIR):
 
 install: $(OBJ)
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
-	@ for target in $(OBJ); do  												\
-		echo "$$target -> $(DESTDIR)$(PREFIX)/bin";				\
-		install -m755 "$$target" $(DESTDIR)$(PREFIX)/bin;	\
+	@ for target in $(OBJ); do \
+		echo "$$target -> $(DESTDIR)$(PREFIX)/bin"; \
+		install -m755 "$$target" $(DESTDIR)$(PREFIX)/bin; \
 	done
 
 clean:
