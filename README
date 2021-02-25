@@ -18,3 +18,4 @@ Run a program without any arguments for details.
 
 At this time, the following programs are included in this repository:
  - hex2float: converts a 32-bit hex value to a 32-bit float
+ - symgrab:   reads a symbol from an object file in various formats
