@@ -17,5 +17,7 @@ Run a program without any arguments for details.
 # Programs
 
 At this time, the following programs are included in this repository:
- - hex2float: converts a 32-bit hex value to a 32-bit float
- - symgrab:   reads a symbol from an object file in various formats
+ - hex2float: Converts a 32-bit hex value to a 32-bit float.
+ - symgrab:   Reads a symbol from an object file in various formats.
+ - jedcrc:    Calculates the checksum of the transmission data in a JEDEC .jed
+              file.
