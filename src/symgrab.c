@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
     exit(EXIT_FAILURE);
   }
 
-  void* handle = dlopen(filename, RTLD_LAZY);
+  void* handle = dlopen(filename, RTLD_NOW);
   if (!handle) {
     fprintf(stderr, "Error opening file: %s\n", dlerror());
     exit(EXIT_FAILURE);
