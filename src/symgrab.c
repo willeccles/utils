@@ -1,159 +1,173 @@
+/*
+ * symgrab.c - load a symbol of a given type from an object file
+ * Author: Will Eccles
+ * Compile with -std=c99
+ * Link with -ldl
+ */
+
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdint.h>
-#include <inttypes.h>
 
-enum SymbolType {
-  kSymInt8,
-  kSymInt16,
-  kSymInt32,
-  kSymInt64,
-  kSymUInt8,
-  kSymUInt16,
-  kSymUInt32,
-  kSymUInt64,
-  kSymXInt8,
-  kSymXInt16,
-  kSymXInt32,
-  kSymXInt64,
+enum symbol_type {
+	SYM_INT8,
+	SYM_INT16,
+	SYM_INT32,
+	SYM_INT64,
+	SYM_UINT8,
+	SYM_UINT16,
+	SYM_UINT32,
+	SYM_UINT64,
+	/* X = hex */
+	SYM_XINT8,
+	SYM_XINT16,
+	SYM_XINT32,
+	SYM_XINT64,
+	SYM_FLOAT,
+	SYM_DOUBLE,
+	SYM_STRING,
 
-  kSymFloat,
-  kSymDouble,
-  kSymString,
-
-  kSymInvalid,
+	SYM_INVALID
 };
 
-void usage(char* argv0) {
-  fprintf(stderr,
-          "usage: %s objfile symbol type\n\n"
-          "  objfile: an object file (.o, .so)\n"
-          "  symbol:  the name of the symbol to read\n"
-          "  type:    the type of the symbol, which is one of:\n"
-          "             - i8, i16, i32, i64 (signed integers)\n"
-          "             - u8, u16, u32, u64 (unsigned integers)\n"
-          "             - x8, x16, x32, x64 (unsigned integers as hex)\n"
-          "             - [f]loat, [d]ouble (float and double)\n"
-          "             - [s]tring          (null-terminated string)\n",
-          argv0);
+void usage(char *argv0)
+{
+	fprintf(stderr,
+		"usage: %s  FILE  SYMBOL  TYPE\n\n"
+		"  FILE\t\tan object file (.o, .so)\n"
+		"  SYMBOL\ta symbol name\n"
+		"  type\t\tthe type of the symbol:\n"
+		"\t\t - i8, i16, i32, i64\n"
+		"\t\t - u8, u16, u32, u64\n"
+		"\t\t - x8, x16, x32, x64\n"
+		"\t\t - [f]loat, [d]ouble\n"
+		"\t\t - [s]tring\n",
+		argv0);
 }
 
-enum SymbolType ParseType(const char* typearg) {
-  if (strlen(typearg) == 1) {
-    switch (typearg[0]) {
-      case 'f':
-        return kSymFloat;
-      case 'd':
-        return kSymDouble;
-      case 's':
-        return kSymString;
-      default:
-        return kSymInvalid;
-    }
-  } else if (strcmp(typearg, "string") == 0) {
-    return kSymString;
-  } else if (strcmp(typearg, "float") == 0) {
-    return kSymFloat;
-  } else if (strcmp(typearg, "double") == 0) {
-    return kSymDouble;
-  } else if (strcmp(typearg, "i8") == 0) {
-    return kSymInt8;
-  } else if (strcmp(typearg, "i16") == 0) {
-    return kSymInt16;
-  } else if (strcmp(typearg, "i32") == 0) {
-    return kSymInt32;
-  } else if (strcmp(typearg, "i64") == 0) {
-    return kSymInt64;
-  } else if (strcmp(typearg, "u8") == 0) {
-    return kSymUInt8;
-  } else if (strcmp(typearg, "u16") == 0) {
-    return kSymUInt16;
-  } else if (strcmp(typearg, "u32") == 0) {
-    return kSymUInt32;
-  } else if (strcmp(typearg, "u64") == 0) {
-    return kSymUInt64;
-  } else if (strcmp(typearg, "x8") == 0) {
-    return kSymXInt8;
-  } else if (strcmp(typearg, "x16") == 0) {
-    return kSymXInt16;
-  } else if (strcmp(typearg, "x32") == 0) {
-    return kSymXInt32;
-  } else if (strcmp(typearg, "x64") == 0) {
-    return kSymXInt64;
-  } else {
-    return kSymInvalid;
-  }
+enum symbol_type parse_type(const char *typearg)
+{
+	if (strlen(typearg) == 1) {
+		switch (typearg[0]) {
+		case 'f':
+			return SYM_FLOAT;
+		case 'd':
+			return SYM_DOUBLE;
+		case 's':
+			return SYM_STRING;
+		default:
+			return SYM_INVALID;
+		}
+	}
+
+	if (strcmp(typearg, "string") == 0)
+		return SYM_STRING;
+	else if (strcmp(typearg, "float") == 0)
+		return SYM_FLOAT;
+	else if (strcmp(typearg, "double") == 0)
+		return SYM_DOUBLE;
+	else if (strcmp(typearg, "i8") == 0)
+		return SYM_INT8;
+	else if (strcmp(typearg, "i16") == 0)
+		return SYM_INT16;
+	else if (strcmp(typearg, "i32") == 0)
+		return SYM_INT32;
+	else if (strcmp(typearg, "i64") == 0)
+		return SYM_INT64;
+	else if (strcmp(typearg, "u8") == 0)
+		return SYM_UINT8;
+	else if (strcmp(typearg, "u16") == 0)
+		return SYM_UINT16;
+	else if (strcmp(typearg, "u32") == 0)
+		return SYM_UINT32;
+	else if (strcmp(typearg, "u64") == 0)
+		return SYM_UINT64;
+	else if (strcmp(typearg, "x8") == 0)
+		return SYM_XINT8;
+	else if (strcmp(typearg, "x16") == 0)
+		return SYM_XINT16;
+	else if (strcmp(typearg, "x32") == 0)
+		return SYM_XINT32;
+	else if (strcmp(typearg, "x64") == 0)
+		return SYM_XINT64;
+	else
+		return SYM_INVALID;
 }
 
-void PrintValue(enum SymbolType valtype, void* valptr) {
-  switch (valtype) {
-#define PTYPE(symtype, type, fmt) case symtype:\
-    printf("%" fmt "\n", *(type*)valptr);\
-    break;
-    PTYPE(kSymInt8, int8_t, PRId8);
-    PTYPE(kSymInt16, int16_t, PRId16);
-    PTYPE(kSymInt32, int32_t, PRId32);
-    PTYPE(kSymInt64, int64_t, PRId64);
-    PTYPE(kSymUInt8, uint8_t, PRIu8);
-    PTYPE(kSymUInt16, uint16_t, PRIu16);
-    PTYPE(kSymUInt32, uint32_t, PRIu32);
-    PTYPE(kSymUInt64, uint64_t, PRIu64);
-    PTYPE(kSymXInt8, uint8_t, PRIx8);
-    PTYPE(kSymXInt16, uint16_t, PRIx16);
-    PTYPE(kSymXInt32, uint32_t, PRIx32);
-    PTYPE(kSymXInt64, uint64_t, PRIx64);
-    PTYPE(kSymFloat, float, "g");
-    PTYPE(kSymDouble, double, "g");
-    PTYPE(kSymString, char*, "s");
-    default:
-      break;
-  }
+void print_value(enum symbol_type valtype, void *valptr)
+{
+#define PTYPE(symtype, type, fmt)				\
+	do {							\
+		if (valtype == symtype) {			\
+			printf("%" fmt "\n", *(type *)valptr);	\
+			return;					\
+		}						\
+	} while (0)
+
+	PTYPE(SYM_INT8,   char,               "hhd");
+	PTYPE(SYM_INT16,  short,              "hd");
+	PTYPE(SYM_INT32,  long,               "ld");
+	PTYPE(SYM_INT64,  long long,          "lld");
+	PTYPE(SYM_UINT8,  unsigned char,      "hhu");
+	PTYPE(SYM_UINT16, unsigned short,     "hu");
+	PTYPE(SYM_UINT32, unsigned long,      "lu");
+	PTYPE(SYM_UINT64, unsigned long long, "llu");
+	PTYPE(SYM_XINT8,  unsigned char,      "hhx");
+	PTYPE(SYM_XINT16, unsigned short,     "hx");
+	PTYPE(SYM_XINT32, unsigned long,      "lx");
+	PTYPE(SYM_XINT64, unsigned long long, "llx");
+	PTYPE(SYM_FLOAT,  float,              "g");
+	PTYPE(SYM_DOUBLE, double,             "g");
+	PTYPE(SYM_STRING, char *,             "s");
 }
 
-int main(int argc, char** argv) {
-  if (argc != 4) {
-    usage(argv[0]);
-    exit(EXIT_FAILURE);
-  }
+int main(int argc, char **argv)
+{
+	const char *filename, *symbol;
+	enum symbol_type type;
+	void *handle, *sym;
 
-  const char* filename = argv[1];
-  const char* symbol = argv[2];
+	if (argc != 4) {
+		usage(argv[0]);
+		exit(EXIT_FAILURE);
+	}
 
-  if (access(filename, F_OK) != 0) {
-    perror(filename);
-    exit(EXIT_FAILURE);
-  }
+	filename = argv[1];
+	symbol = argv[2];
 
-  enum SymbolType type = ParseType(argv[3]);
+	if (access(filename, F_OK) != 0) {
+		perror(filename);
+		exit(EXIT_FAILURE);
+	}
 
-  if (type == kSymInvalid) {
-    fprintf(stderr, "Invalid type: %s\n", argv[3]);
-    usage(argv[0]);
-    exit(EXIT_FAILURE);
-  }
+	type = parse_type(argv[3]);
+	if (type == SYM_INVALID) {
+		fprintf(stderr, "invalid type: %s\n", argv[3]);
+		usage(argv[0]);
+		exit(EXIT_FAILURE);
+	}
 
-  void* handle = dlopen(filename, RTLD_NOW);
-  if (!handle) {
-    fprintf(stderr, "Error opening file: %s\n", dlerror());
-    exit(EXIT_FAILURE);
-  }
+	handle = dlopen(filename, RTLD_NOW);
+	if (handle == NULL) {
+		fprintf(stderr, "error opening file: %s\n", dlerror());
+		exit(EXIT_FAILURE);
+	}
 
-  // clear errors if any
-  dlerror();
+	/* clear errors, if any */
+	dlerror();
 
-  void* sym = dlsym(handle, symbol);
-  if (!sym) {
-    fprintf(stderr, "Error loading symbol: %s\n", dlerror());
-    exit(EXIT_FAILURE);
-  }
+	sym = dlsym(handle, symbol);
+	if (sym == NULL) {
+		fprintf(stderr, "error loading symbol: %s\n", dlerror());
+		exit(EXIT_FAILURE);
+	}
 
-  printf("Symbol %s found at %p:\n", argv[2], sym);
-  PrintValue(type, sym);
+	printf("symbol %s found at %p:\n", argv[2], sym);
+	print_value(type, sym);
 
-  dlclose(handle);
+	dlclose(handle);
 
-  exit(EXIT_SUCCESS);
+	exit(EXIT_SUCCESS);
 }

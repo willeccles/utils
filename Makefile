@@ -4,7 +4,7 @@ SDIR = src
 SRC = $(wildcard $(SDIR)/*.c)
 OBJ = $(patsubst $(SDIR)/%.c,$(BDIR)/%,$(SRC))
 
-CFLAGS += -s -O3 -std=c11 -Wall -pedantic -ldl
+CFLAGS += -s -O3 -std=c99 -Wall -pedantic -ldl -fno-strict-aliasing
 CPPFLAGS += -D_XOPEN_SOURCE=700
 
 PREFIX ?= /usr/local
