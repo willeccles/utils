@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>symgrab.c</title>
+<meta name="Generator" content="Vim/8.2">
+<meta name="plugin-version" content="vim8.1_v2">
+<meta name="syntax" content="c">
+<meta name="settings" content="use_css,pre_wrap,no_foldcolumn,prevent_copy=,use_input_for_pc=fallback">
+<meta name="colorscheme" content="torte">
+<style>
+<!--
+pre { white-space: pre-wrap; font-family: monospace; color: #cccccc; background-color: #000000; }
+body { font-family: monospace; color: #cccccc; background-color: #000000; }
+* { font-size: 1em; }
+.Statement { color: #ffff00; }
+.PreProc { color: #ff80ff; }
+.Type { color: #60ff60; }
+.Comment { color: #80a0ff; }
+.Constant { color: #ffa0a0; }
+.Special { color: #ffa500; }
+-->
+</style>
+</head>
+<body>
+<pre id='vimCodeElement'>
+<span class="Comment">/*</span>
+<span class="Comment"> * symgrab.c - load a symbol of a given type from an object file</span>
+<span class="Comment"> * Author: Will Eccles</span>
+<span class="Comment"> * Compile with -std=c99</span>
+<span class="Comment"> * Link with -ldl</span>
+<span class="Comment"> </span><span class="Comment">*/</span>
+
+<span class="PreProc">#include </span><span class="Constant">&lt;dlfcn.h&gt;</span>
+<span class="PreProc">#include </span><span class="Constant">&lt;stdio.h&gt;</span>
+<span class="PreProc">#include </span><span class="Constant">&lt;stdlib.h&gt;</span>
+<span class="PreProc">#include </span><span class="Constant">&lt;string.h&gt;</span>
+<span class="PreProc">#include </span><span class="Constant">&lt;unistd.h&gt;</span>
+
+<span class="Type">enum</span> symbol_type {
+	SYM_INT8,
+	SYM_INT16,
+	SYM_INT32,
+	SYM_INT64,
+	SYM_UINT8,
+	SYM_UINT16,
+	SYM_UINT32,
+	SYM_UINT64,
+	<span class="Comment">/*</span><span class="Comment"> X = hex </span><span class="Comment">*/</span>
+	SYM_XINT8,
+	SYM_XINT16,
+	SYM_XINT32,
+	SYM_XINT64,
+	SYM_FLOAT,
+	SYM_DOUBLE,
+	SYM_STRING,
+
+	SYM_INVALID
+};
+
+<span class="Type">void</span> usage(<span class="Type">char</span> *argv0)
+{
+	fprintf(<span class="Constant">stderr</span>,
+		<span class="Constant">&quot;usage: </span><span class="Special">%s</span><span class="Constant">  FILE  SYMBOL  TYPE</span><span class="Special">\n\n</span><span class="Constant">&quot;</span>
+		<span class="Constant">&quot;  FILE</span><span class="Special">\t\t</span><span class="Constant">an object file (.o, .so)</span><span class="Special">\n</span><span class="Constant">&quot;</span>
+		<span class="Constant">&quot;  SYMBOL</span><span class="Special">\t</span><span class="Constant">a symbol name</span><span class="Special">\n</span><span class="Constant">&quot;</span>
+		<span class="Constant">&quot;  type</span><span class="Special">\t\t</span><span class="Constant">the type of the symbol:</span><span class="Special">\n</span><span class="Constant">&quot;</span>
+		<span class="Constant">&quot;</span><span class="Special">\t\t</span><span class="Constant"> - i8, i16, i32, i64</span><span class="Special">\n</span><span class="Constant">&quot;</span>
+		<span class="Constant">&quot;</span><span class="Special">\t\t</span><span class="Constant"> - u8, u16, u32, u64</span><span class="Special">\n</span><span class="Constant">&quot;</span>
+		<span class="Constant">&quot;</span><span class="Special">\t\t</span><span class="Constant"> - x8, x16, x32, x64</span><span class="Special">\n</span><span class="Constant">&quot;</span>
+		<span class="Constant">&quot;</span><span class="Special">\t\t</span><span class="Constant"> - [f]loat, [d]ouble</span><span class="Special">\n</span><span class="Constant">&quot;</span>
+		<span class="Constant">&quot;</span><span class="Special">\t\t</span><span class="Constant"> - [s]tring</span><span class="Special">\n</span><span class="Constant">&quot;</span>,
+		argv0);
+}
+
+<span class="Type">enum</span> symbol_type parse_type(<span class="Type">const</span> <span class="Type">char</span> *typearg)
+{
+	<span class="Statement">if</span> (strlen(typearg) == <span class="Constant">1</span>) {
+		<span class="Statement">switch</span> (typearg[<span class="Constant">0</span>]) {
+		<span class="Statement">case</span> <span class="Constant">'f'</span>:
+			<span class="Statement">return</span> SYM_FLOAT;
+		<span class="Statement">case</span> <span class="Constant">'d'</span>:
+			<span class="Statement">return</span> SYM_DOUBLE;
+		<span class="Statement">case</span> <span class="Constant">'s'</span>:
+			<span class="Statement">return</span> SYM_STRING;
+		<span class="Statement">default</span>:
+			<span class="Statement">return</span> SYM_INVALID;
+		}
+	}
+
+	<span class="Statement">if</span> (strcmp(typearg, <span class="Constant">&quot;string&quot;</span>) == <span class="Constant">0</span>)
+		<span class="Statement">return</span> SYM_STRING;
+	<span class="Statement">else</span> <span class="Statement">if</span> (strcmp(typearg, <span class="Constant">&quot;float&quot;</span>) == <span class="Constant">0</span>)
+		<span class="Statement">return</span> SYM_FLOAT;
+	<span class="Statement">else</span> <span class="Statement">if</span> (strcmp(typearg, <span class="Constant">&quot;double&quot;</span>) == <span class="Constant">0</span>)
+		<span class="Statement">return</span> SYM_DOUBLE;
+	<span class="Statement">else</span> <span class="Statement">if</span> (strcmp(typearg, <span class="Constant">&quot;i8&quot;</span>) == <span class="Constant">0</span>)
+		<span class="Statement">return</span> SYM_INT8;
+	<span class="Statement">else</span> <span class="Statement">if</span> (strcmp(typearg, <span class="Constant">&quot;i16&quot;</span>) == <span class="Constant">0</span>)
+		<span class="Statement">return</span> SYM_INT16;
+	<span class="Statement">else</span> <span class="Statement">if</span> (strcmp(typearg, <span class="Constant">&quot;i32&quot;</span>) == <span class="Constant">0</span>)
+		<span class="Statement">return</span> SYM_INT32;
+	<span class="Statement">else</span> <span class="Statement">if</span> (strcmp(typearg, <span class="Constant">&quot;i64&quot;</span>) == <span class="Constant">0</span>)
+		<span class="Statement">return</span> SYM_INT64;
+	<span class="Statement">else</span> <span class="Statement">if</span> (strcmp(typearg, <span class="Constant">&quot;u8&quot;</span>) == <span class="Constant">0</span>)
+		<span class="Statement">return</span> SYM_UINT8;
+	<span class="Statement">else</span> <span class="Statement">if</span> (strcmp(typearg, <span class="Constant">&quot;u16&quot;</span>) == <span class="Constant">0</span>)
+		<span class="Statement">return</span> SYM_UINT16;
+	<span class="Statement">else</span> <span class="Statement">if</span> (strcmp(typearg, <span class="Constant">&quot;u32&quot;</span>) == <span class="Constant">0</span>)
+		<span class="Statement">return</span> SYM_UINT32;
+	<span class="Statement">else</span> <span class="Statement">if</span> (strcmp(typearg, <span class="Constant">&quot;u64&quot;</span>) == <span class="Constant">0</span>)
+		<span class="Statement">return</span> SYM_UINT64;
+	<span class="Statement">else</span> <span class="Statement">if</span> (strcmp(typearg, <span class="Constant">&quot;x8&quot;</span>) == <span class="Constant">0</span>)
+		<span class="Statement">return</span> SYM_XINT8;
+	<span class="Statement">else</span> <span class="Statement">if</span> (strcmp(typearg, <span class="Constant">&quot;x16&quot;</span>) == <span class="Constant">0</span>)
+		<span class="Statement">return</span> SYM_XINT16;
+	<span class="Statement">else</span> <span class="Statement">if</span> (strcmp(typearg, <span class="Constant">&quot;x32&quot;</span>) == <span class="Constant">0</span>)
+		<span class="Statement">return</span> SYM_XINT32;
+	<span class="Statement">else</span> <span class="Statement">if</span> (strcmp(typearg, <span class="Constant">&quot;x64&quot;</span>) == <span class="Constant">0</span>)
+		<span class="Statement">return</span> SYM_XINT64;
+	<span class="Statement">else</span>
+		<span class="Statement">return</span> SYM_INVALID;
+}
+
+<span class="Type">void</span> print_value(<span class="Type">enum</span> symbol_type valtype, <span class="Type">void</span> *valptr)
+{
+<span class="PreProc">#define PTYPE(symtype, type, fmt)				\</span>
+<span class="PreProc">	</span><span class="Statement">do</span><span class="PreProc"> {							\</span>
+<span class="PreProc">		</span><span class="Statement">if</span><span class="PreProc"> (valtype == symtype) {			\</span>
+<span class="PreProc">			printf(</span><span class="Constant">&quot;%&quot;</span><span class="PreProc"> fmt </span><span class="Constant">&quot;</span><span class="Special">\n</span><span class="Constant">&quot;</span><span class="PreProc">, *(type *)valptr);	\</span>
+<span class="PreProc">			</span><span class="Statement">return</span><span class="PreProc">;					\</span>
+<span class="PreProc">		}						\</span>
+<span class="PreProc">	} </span><span class="Statement">while</span><span class="PreProc"> (</span><span class="Constant">0</span><span class="PreProc">)</span>
+
+	PTYPE(SYM_INT8,   <span class="Type">char</span>,               <span class="Constant">&quot;hhd&quot;</span>);
+	PTYPE(SYM_INT16,  <span class="Type">short</span>,              <span class="Constant">&quot;hd&quot;</span>);
+	PTYPE(SYM_INT32,  <span class="Type">long</span>,               <span class="Constant">&quot;ld&quot;</span>);
+	PTYPE(SYM_INT64,  <span class="Type">long</span> <span class="Type">long</span>,          <span class="Constant">&quot;lld&quot;</span>);
+	PTYPE(SYM_UINT8,  <span class="Type">unsigned</span> <span class="Type">char</span>,      <span class="Constant">&quot;hhu&quot;</span>);
+	PTYPE(SYM_UINT16, <span class="Type">unsigned</span> <span class="Type">short</span>,     <span class="Constant">&quot;hu&quot;</span>);
+	PTYPE(SYM_UINT32, <span class="Type">unsigned</span> <span class="Type">long</span>,      <span class="Constant">&quot;lu&quot;</span>);
+	PTYPE(SYM_UINT64, <span class="Type">unsigned</span> <span class="Type">long</span> <span class="Type">long</span>, <span class="Constant">&quot;llu&quot;</span>);
+	PTYPE(SYM_XINT8,  <span class="Type">unsigned</span> <span class="Type">char</span>,      <span class="Constant">&quot;hhx&quot;</span>);
+	PTYPE(SYM_XINT16, <span class="Type">unsigned</span> <span class="Type">short</span>,     <span class="Constant">&quot;hx&quot;</span>);
+	PTYPE(SYM_XINT32, <span class="Type">unsigned</span> <span class="Type">long</span>,      <span class="Constant">&quot;lx&quot;</span>);
+	PTYPE(SYM_XINT64, <span class="Type">unsigned</span> <span class="Type">long</span> <span class="Type">long</span>, <span class="Constant">&quot;llx&quot;</span>);
+	PTYPE(SYM_FLOAT,  <span class="Type">float</span>,              <span class="Constant">&quot;g&quot;</span>);
+	PTYPE(SYM_DOUBLE, <span class="Type">double</span>,             <span class="Constant">&quot;g&quot;</span>);
+	PTYPE(SYM_STRING, <span class="Type">char</span> *,             <span class="Constant">&quot;s&quot;</span>);
+}
+
+<span class="Type">int</span> main(<span class="Type">int</span> argc, <span class="Type">char</span> **argv)
+{
+	<span class="Type">const</span> <span class="Type">char</span> *filename, *symbol;
+	<span class="Type">enum</span> symbol_type type;
+	<span class="Type">void</span> *handle, *sym;
+
+	<span class="Statement">if</span> (argc != <span class="Constant">4</span>) {
+		usage(argv[<span class="Constant">0</span>]);
+		exit(<span class="Constant">EXIT_FAILURE</span>);
+	}
+
+	filename = argv[<span class="Constant">1</span>];
+	symbol = argv[<span class="Constant">2</span>];
+
+	<span class="Statement">if</span> (access(filename, F_OK) != <span class="Constant">0</span>) {
+		perror(filename);
+		exit(<span class="Constant">EXIT_FAILURE</span>);
+	}
+
+	type = parse_type(argv[<span class="Constant">3</span>]);
+	<span class="Statement">if</span> (type == SYM_INVALID) {
+		fprintf(<span class="Constant">stderr</span>, <span class="Constant">&quot;invalid type: </span><span class="Special">%s</span><span class="Special">\n</span><span class="Constant">&quot;</span>, argv[<span class="Constant">3</span>]);
+		usage(argv[<span class="Constant">0</span>]);
+		exit(<span class="Constant">EXIT_FAILURE</span>);
+	}
+
+	handle = dlopen(filename, RTLD_NOW);
+	<span class="Statement">if</span> (handle == <span class="Constant">NULL</span>) {
+		fprintf(<span class="Constant">stderr</span>, <span class="Constant">&quot;error opening file: </span><span class="Special">%s</span><span class="Special">\n</span><span class="Constant">&quot;</span>, dlerror());
+		exit(<span class="Constant">EXIT_FAILURE</span>);
+	}
+
+	<span class="Comment">/*</span><span class="Comment"> clear errors, if any </span><span class="Comment">*/</span>
+	dlerror();
+
+	sym = dlsym(handle, symbol);
+	<span class="Statement">if</span> (sym == <span class="Constant">NULL</span>) {
+		fprintf(<span class="Constant">stderr</span>, <span class="Constant">&quot;error loading symbol: </span><span class="Special">%s</span><span class="Special">\n</span><span class="Constant">&quot;</span>, dlerror());
+		exit(<span class="Constant">EXIT_FAILURE</span>);
+	}
+
+	printf(<span class="Constant">&quot;symbol </span><span class="Special">%s</span><span class="Constant"> found at </span><span class="Special">%p</span><span class="Constant">:</span><span class="Special">\n</span><span class="Constant">&quot;</span>, argv[<span class="Constant">2</span>], sym);
+	print_value(type, sym);
+
+	dlclose(handle);
+
+	exit(<span class="Constant">EXIT_SUCCESS</span>);
+}
+</pre>
+</body>
+</html>
+<!-- vim: set foldmethod=manual : -->

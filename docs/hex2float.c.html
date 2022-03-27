@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>hex2float.c</title>
+<meta name="Generator" content="Vim/8.2">
+<meta name="plugin-version" content="vim8.1_v2">
+<meta name="syntax" content="c">
+<meta name="settings" content="use_css,pre_wrap,no_foldcolumn,prevent_copy=,use_input_for_pc=fallback">
+<meta name="colorscheme" content="torte">
+<style>
+<!--
+pre { white-space: pre-wrap; font-family: monospace; color: #cccccc; background-color: #000000; }
+body { font-family: monospace; color: #cccccc; background-color: #000000; }
+* { font-size: 1em; }
+.Statement { color: #ffff00; }
+.PreProc { color: #ff80ff; }
+.Type { color: #60ff60; }
+.Comment { color: #80a0ff; }
+.Constant { color: #ffa0a0; }
+.Special { color: #ffa500; }
+-->
+</style>
+</head>
+<body>
+<pre id='vimCodeElement'>
+<span class="Comment">/*</span>
+<span class="Comment"> * hex2float.c - convert hex values to floats</span>
+<span class="Comment"> * Author: Will Eccles</span>
+<span class="Comment"> * Compile with -std=c89 -fno-strict-aliasing</span>
+<span class="Comment"> </span><span class="Comment">*/</span>
+
+<span class="PreProc">#include </span><span class="Constant">&lt;ctype.h&gt;</span>
+<span class="PreProc">#include </span><span class="Constant">&lt;errno.h&gt;</span>
+<span class="PreProc">#include </span><span class="Constant">&lt;stdio.h&gt;</span>
+<span class="PreProc">#include </span><span class="Constant">&lt;stdlib.h&gt;</span>
+<span class="PreProc">#include </span><span class="Constant">&lt;string.h&gt;</span>
+
+<span class="PreProc">#define SWAP(a,b) ((a)^=(b),(b)^=(a),(a)^=(b))</span>
+
+<span class="PreProc">#define FALSE </span><span class="Constant">0</span>
+<span class="PreProc">#define TRUE </span><span class="Constant">1</span>
+
+<span class="Type">unsigned</span> <span class="Type">long</span> swapbytes(<span class="Type">unsigned</span> <span class="Type">long</span> val)
+{
+	<span class="Type">unsigned</span> <span class="Type">char</span> *bytes;
+
+	bytes = (<span class="Type">unsigned</span> <span class="Type">char</span> *)&amp;val;
+
+	SWAP(bytes[<span class="Constant">0</span>], bytes[<span class="Constant">3</span>]);
+	SWAP(bytes[<span class="Constant">1</span>], bytes[<span class="Constant">2</span>]);
+
+	<span class="Statement">return</span> val;
+}
+
+<span class="Type">void</span> usage(<span class="Type">const</span> <span class="Type">char</span> *argv0)
+{
+	fprintf(<span class="Constant">stderr</span>,
+		<span class="Constant">&quot;usage: </span><span class="Special">%s</span><span class="Constant"> [</span><span class="Special">%%</span><span class="Constant">][0x]HEX</span><span class="Special">\n</span><span class="Constant">&quot;</span>
+		<span class="Constant">&quot;  If the hex value begins with a </span><span class="Special">%%</span><span class="Constant"> character, it will be</span><span class="Special">\n</span><span class="Constant">&quot;</span>
+		<span class="Constant">&quot;  interpreted as little-endian, and its byte order will be</span><span class="Special">\n</span><span class="Constant">&quot;</span>
+		<span class="Constant">&quot;  swapped before converting.</span><span class="Special">\n</span><span class="Constant">&quot;</span>,
+		argv0);
+}
+
+<span class="Type">int</span> main(<span class="Type">int</span> argc, <span class="Type">char</span> **argv)
+{
+	<span class="Type">char</span> *input, *end;
+	<span class="Type">int</span> bswap;
+	<span class="Type">unsigned</span> <span class="Type">long</span> ival;
+
+	<span class="Statement">if</span> (argc != <span class="Constant">2</span>) {
+		usage(argv[<span class="Constant">0</span>]);
+		exit(<span class="Constant">EXIT_FAILURE</span>);
+	}
+
+	input = argv[<span class="Constant">1</span>];
+	end = <span class="Constant">NULL</span>;
+	bswap = FALSE;
+
+	<span class="Statement">while</span> (isspace(*input) &amp;&amp; *input != <span class="Special">'\0'</span>)
+		input++;
+
+	<span class="Statement">if</span> (*input == <span class="Special">'\0'</span>) {
+		fprintf(<span class="Constant">stderr</span>, <span class="Constant">&quot;Empty input</span><span class="Special">\n</span><span class="Constant">&quot;</span>);
+		exit(<span class="Constant">EXIT_FAILURE</span>);
+	}
+
+	<span class="Statement">if</span> (*input == <span class="Constant">'%'</span>) {
+		bswap = TRUE;
+		input++;
+	}
+
+	errno = <span class="Constant">0</span>;
+	ival = strtol(input, &amp;end, <span class="Constant">16</span>);
+
+	<span class="Statement">if</span> (errno != <span class="Constant">0</span>) {
+		perror(<span class="Constant">&quot;strtol&quot;</span>);
+		exit(<span class="Constant">EXIT_FAILURE</span>);
+	}
+
+	<span class="Statement">if</span> (end == input) {
+		fprintf(<span class="Constant">stderr</span>, <span class="Constant">&quot;Invalid input: </span><span class="Special">%s</span><span class="Special">\n</span><span class="Constant">&quot;</span>, argv[<span class="Constant">1</span>]);
+		exit(<span class="Constant">EXIT_FAILURE</span>);
+	}
+
+	<span class="Statement">if</span> (bswap)
+		ival = swapbytes(ival);
+
+	printf(<span class="Constant">&quot;</span><span class="Special">%f</span><span class="Special">\n</span><span class="Constant">&quot;</span>, *((<span class="Type">float</span> *)&amp;ival));
+
+	exit(<span class="Constant">EXIT_SUCCESS</span>);
+}
+</pre>
+</body>
+</html>
+<!-- vim: set foldmethod=manual : -->

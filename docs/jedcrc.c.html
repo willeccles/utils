@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>jedcrc.c</title>
+<meta name="Generator" content="Vim/8.2">
+<meta name="plugin-version" content="vim8.1_v2">
+<meta name="syntax" content="c">
+<meta name="settings" content="use_css,pre_wrap,no_foldcolumn,prevent_copy=,use_input_for_pc=fallback">
+<meta name="colorscheme" content="torte">
+<style>
+<!--
+pre { white-space: pre-wrap; font-family: monospace; color: #cccccc; background-color: #000000; }
+body { font-family: monospace; color: #cccccc; background-color: #000000; }
+* { font-size: 1em; }
+.Statement { color: #ffff00; }
+.PreProc { color: #ff80ff; }
+.Type { color: #60ff60; }
+.Comment { color: #80a0ff; }
+.Constant { color: #ffa0a0; }
+.Special { color: #ffa500; }
+-->
+</style>
+</head>
+<body>
+<pre id='vimCodeElement'>
+<span class="Comment">/*</span>
+<span class="Comment"> * jedcrc.c - Compute the checksum of the transmission data in a JEDEC .jed file</span>
+<span class="Comment"> * Author: Will Eccles</span>
+<span class="Comment"> * Compile with -std=c89</span>
+<span class="Comment"> </span><span class="Comment">*/</span>
+
+<span class="PreProc">#include </span><span class="Constant">&lt;stdio.h&gt;</span>
+<span class="PreProc">#include </span><span class="Constant">&lt;string.h&gt;</span>
+<span class="PreProc">#include </span><span class="Constant">&lt;stdlib.h&gt;</span>
+
+<span class="PreProc">#define FALSE </span><span class="Constant">0</span>
+<span class="PreProc">#define TRUE </span><span class="Constant">1</span>
+
+<span class="PreProc">#define STX </span><span class="Constant">0x02</span>
+<span class="PreProc">#define ETX </span><span class="Constant">0x03</span>
+
+<span class="Type">int</span> main(<span class="Type">int</span> argc, <span class="Type">char</span> **argv)
+{
+	<span class="Type">FILE</span> *src;
+	<span class="Type">unsigned</span> <span class="Type">short</span> sum;
+	<span class="Type">int</span> c;
+	<span class="Type">int</span> start, end;
+
+	<span class="Statement">if</span> (argc != <span class="Constant">2</span>) {
+		fprintf(<span class="Constant">stderr</span>, <span class="Constant">&quot;usage: </span><span class="Special">%s</span><span class="Constant"> PATH</span><span class="Special">\n</span><span class="Constant">&quot;</span>, argv[<span class="Constant">0</span>]);
+		exit(<span class="Constant">EXIT_FAILURE</span>);
+	}
+
+	<span class="Statement">if</span> (strcmp(argv[<span class="Constant">1</span>], <span class="Constant">&quot;-&quot;</span>) == <span class="Constant">0</span>) {
+		src = <span class="Constant">stdin</span>;
+	} <span class="Statement">else</span> {
+		src = fopen(argv[<span class="Constant">1</span>], <span class="Constant">&quot;rb&quot;</span>);
+		<span class="Statement">if</span> (src == <span class="Constant">NULL</span>) {
+			perror(argv[<span class="Constant">1</span>]);
+			exit(<span class="Constant">EXIT_FAILURE</span>);
+		}
+	}
+
+	sum = <span class="Constant">0</span>;
+	start = FALSE;
+	end = FALSE;
+	<span class="Statement">while</span> (!((c = fgetc(src)) &amp; ~<span class="Constant">0x7F</span>)) {
+		<span class="Statement">if</span> (!start &amp;&amp; c == STX)
+			start = TRUE;
+
+		<span class="Statement">if</span> (start &amp;&amp; !end)
+			sum += (<span class="Type">unsigned</span> <span class="Type">short</span>)c;
+
+		<span class="Statement">if</span> (!end &amp;&amp; c == ETX) {
+			end = TRUE;
+			<span class="Statement">break</span>;
+		}
+	}
+
+	<span class="Statement">if</span> (src != <span class="Constant">stdin</span>)
+		fclose(src);
+
+	<span class="Statement">if</span> (start &amp;&amp; end) {
+		printf(<span class="Constant">&quot;Checksum: </span><span class="Special">%04hX</span><span class="Special">\n</span><span class="Constant">&quot;</span>, sum);
+	} <span class="Statement">else</span> <span class="Statement">if</span> (!start) {
+		fprintf(<span class="Constant">stderr</span>, <span class="Constant">&quot;No STX byte found</span><span class="Special">\n</span><span class="Constant">&quot;</span>);
+		exit(<span class="Constant">EXIT_FAILURE</span>);
+	} <span class="Statement">else</span> <span class="Statement">if</span> (!end) {
+		fprintf(<span class="Constant">stderr</span>, <span class="Constant">&quot;No ETX byte found</span><span class="Special">\n</span><span class="Constant">&quot;</span>);
+		exit(<span class="Constant">EXIT_FAILURE</span>);
+	}
+
+	exit(<span class="Constant">EXIT_SUCCESS</span>);
+}
+</pre>
+</body>
+</html>
+<!-- vim: set foldmethod=manual : -->
