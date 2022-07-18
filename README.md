@@ -23,3 +23,4 @@ At this time, the following programs are included in this repository:
  - symgrab:   Reads a symbol from an object file in various formats.
  - jedcrc:    Calculates the checksum of the transmission data in a JEDEC .jed
               file.
+ - resdiv:    Calculates resistive divider values.
