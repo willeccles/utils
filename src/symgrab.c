@@ -108,15 +108,15 @@ void print_value(enum symbol_type valtype, void *valptr)
 
 	PTYPE(SYM_INT8,   char,               "hhd");
 	PTYPE(SYM_INT16,  short,              "hd");
-	PTYPE(SYM_INT32,  long,               "ld");
+	PTYPE(SYM_INT32,  int,                "d");
 	PTYPE(SYM_INT64,  long long,          "lld");
 	PTYPE(SYM_UINT8,  unsigned char,      "hhu");
 	PTYPE(SYM_UINT16, unsigned short,     "hu");
-	PTYPE(SYM_UINT32, unsigned long,      "lu");
+	PTYPE(SYM_UINT32, unsigned int,       "u");
 	PTYPE(SYM_UINT64, unsigned long long, "llu");
 	PTYPE(SYM_XINT8,  unsigned char,      "hhx");
 	PTYPE(SYM_XINT16, unsigned short,     "hx");
-	PTYPE(SYM_XINT32, unsigned long,      "lx");
+	PTYPE(SYM_XINT32, unsigned int,       "x");
 	PTYPE(SYM_XINT64, unsigned long long, "llx");
 	PTYPE(SYM_FLOAT,  float,              "g");
 	PTYPE(SYM_DOUBLE, double,             "g");
