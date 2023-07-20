@@ -81,7 +81,10 @@ int main(int argc, char **argv)
 	if (bswap)
 		ival = swapbytes(ival);
 
-	printf("%f\n", *((float *)&ival));
+	float f;
+	memcpy(&f, &ival, sizeof(f));
+
+	printf("%f\n", f);
 
 	exit(EXIT_SUCCESS);
 }
