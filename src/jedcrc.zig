@@ -34,8 +34,7 @@ fn computeJedecCrc(reader: anytype) JedCrcError!u16 {
             }
 
             if (start and !end) {
-                _ = @addWithOverflow(u16, sum, v, &sum);
-                //sum += v;
+                sum +%= v;
             }
 
             if (!end and v == ETX) {
