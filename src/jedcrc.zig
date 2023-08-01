@@ -1,9 +1,6 @@
 const std = @import("std");
 const exit = std.process.exit;
 
-const STX = 0x02;
-const ETX = 0x03;
-
 const JedCrcError = error {
     StartNotFound,
     EndNotFound,
@@ -29,7 +26,7 @@ fn computeJedecCrc(reader: anytype) JedCrcError!u16 {
 
     while (!end and !eof) {
         if (reader.readByte()) |v| {
-            if (!start and v == STX) {
+            if (!start and v == std.ascii.control_code.stx) {
                 start = true;
             }
 
@@ -37,7 +34,7 @@ fn computeJedecCrc(reader: anytype) JedCrcError!u16 {
                 sum +%= v;
             }
 
-            if (!end and v == ETX) {
+            if (!end and v == std.ascii.control_code.etx) {
                 end = true;
             }
         } else |err| {
