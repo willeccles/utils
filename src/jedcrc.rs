@@ -13,7 +13,8 @@ enum JedCrcError {
 }
 
 fn usage(argv0: &str) {
-    eprintln!("usage: {} PATH", argv0);
+    eprintln!(r"usage: {} [FILE]
+  If a FILE is missing or '-', reads from stdin.", argv0);
 }
 
 // TODO figure out error handling, which appears to be a massive PITA in rust...
@@ -66,12 +67,12 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let argc = args.len();
 
-    if argc != 2 {
+    if argc > 2 {
         usage(&args[0]);
         exit(1);
     }
 
-    let res = if args[1] != "-" {
+    let res = if argc == 2 && args[1] != "-" {
         let path = Path::new(&args[1]);
         let file = match File::open(&path) {
             Ok(file) => file,
